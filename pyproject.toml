@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools >= 61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "prosperity2bt"
+description = "Backtester for IMC Prosperity 2 algorithms"
+version = "0.0.0"
+readme = "README.md"
+license = {file = "LICENSE"}
+authors = [{name = "Jasper van Merle", email = "jaspervmerle@gmail.com"}]
+keywords = ["imc", "prosperity", "backtest", "backtester"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Financial and Insurance Industry",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+]
+requires-python = ">= 3.9"
+dependencies = ["jsonpickle"]
+
+[project.scripts]
+prosperity2bt = "prosperity2bt.main:main"
+
+[project.urls]
+Repository = "https://github.com/jmerle/imc-prosperity-2-backtester"
+Issues = "https://github.com/jmerle/imc-prosperity-2-backtester/issues"
+Changelog = "https://github.com/jmerle/imc-prosperity-2-backtester/releases"
+
+[tool.setuptools.packages.find]
+include = ["prosperity2bt", "prosperity2bt.*"]
+
+[tool.setuptools.package-data]
+prosperity2bt = ["resources/*/*.csv"]

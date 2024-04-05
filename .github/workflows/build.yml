@@ -1,0 +1,55 @@
+name: Build
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+
+      - name: Install pypa/build
+        run: python3 -m pip install build --user
+
+      - name: Update version
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
+        run: sed -i 's/version = "0.0.0-dev"/version = "'"${GITHUB_REF##*/}"'"/g' pyproject.toml
+
+      - name: Build
+        run: python3 -m build
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-package-distributions
+          path: dist/
+
+  publish:
+    runs-on: ubuntu-latest
+
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
+    needs: build
+
+    environment:
+      name: pypi
+      url: https://pypi.org/p/prosperity2bt
+
+    permissions:
+      id-token: write
+
+    steps:
+      - name: Download all distributions
+        uses: actions/download-artifact@v4
+        with:
+          name: python-package-distributions
+          path: dist/
+
+      - name: Publish
+        uses: pypa/gh-action-pypi-publish@release/v1
