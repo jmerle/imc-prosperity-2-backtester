@@ -216,8 +216,8 @@ def run_backtest(trader: Any, data: DayData) -> DayResult:
     } for product in tradable_products}
 
     own_positions = defaultdict(int)
-    own_trades = {}
-    market_trades = {}
+    own_trades = defaultdict(list)
+    market_trades = defaultdict(list)
 
     profit_loss_by_product = defaultdict(float)
 
