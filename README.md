@@ -51,7 +51,7 @@ $ prosperity2bt example/starter.py 1 --data prosperity2bt/resources
 
 ## Order Matching
 
-Orders placed by `Trader.run` at a given timestamp are matched against the order depths of that timestamp's state. Market trades are ignored in the matching process. Orders are executed at your best possible price, e.g. if you place a buy order for $10 but there is non-zero ask volume at $9, your order is (possibly partially) filled at $9. Similarly, if you place a sell order for $10 but there is non-zero bid volume at $11, your order is (possibly partially) filled at $11.
+Orders placed by `Trader.run` at a given timestamp are matched against the order depths of that timestamp's state. Market trades are ignored in the matching process. Orders are executed at your best possible price, e.g. if you place a buy order for €10 but there is non-zero ask volume at €9, your order is (possibly partially) filled at €9. Similarly, if you place a sell order for €10 but there is non-zero bid volume at €11, your order is (possibly partially) filled at €11.
 
 Limits are enforced before orders are matched to order depths. If for a product your position would exceed the limit, assuming all your orders would get filled, all your orders for that product get canceled.
 
