@@ -127,6 +127,8 @@ def process_order(
         return process_buy_order(timestamp, order, order_depth, own_trades, own_positions, profit_loss_by_product)
     elif order.quantity < 0:
         return process_sell_order(timestamp, order, order_depth, own_trades, own_positions, profit_loss_by_product)
+    else:
+        return []
 
 def trade_to_dict(trade: Trade) -> dict[str, Any]:
     return {
