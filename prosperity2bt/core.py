@@ -253,6 +253,15 @@ def run_backtest(trader: Any, data: DayData) -> DayResult:
         with redirect_stdout(stdout):
             orders_by_symbol, conversions, trader_data = trader.run(state)
 
+        for product in tradable_products:
+            price = prices_by_timestamp[timestamp][product]
+
+            profit_loss = profit_loss_by_product[product]
+            if own_positions[product] != 0:
+                profit_loss += own_positions[product] * price.mid_price
+
+            result.activity_logs.append(create_activity_log_row(data.day, timestamp, product, price, profit_loss))
+
         sandbox_log = check_limits(tradable_products, orders_by_symbol, own_positions)
 
         result.sandbox_logs.append({
@@ -287,17 +296,6 @@ def run_backtest(trader: Any, data: DayData) -> DayResult:
             current_trades.extend([trade_to_dict(trade) for trade in trades_by_timestamp[timestamp][product]])
 
         result.trades.extend(current_trades)
-
-        for product in tradable_products:
-            price = prices_by_timestamp[timestamp][product]
-
-            profit_loss = profit_loss_by_product[product]
-            if own_positions[product] < 0:
-                profit_loss += own_positions[product] * price.ask_prices[0]
-            elif own_positions[product] > 0:
-                profit_loss += own_positions[product] * price.bid_prices[0]
-
-            result.activity_logs.append(create_activity_log_row(data.day, timestamp, product, price, profit_loss))
 
     print_backtest_summary(result, tradable_products)
     return result
