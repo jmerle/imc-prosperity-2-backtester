@@ -60,7 +60,6 @@ def process_buy_order(
     timestamp: int,
     order: Order,
     order_depth: OrderDepth,
-    own_trades: dict[Symbol, list[Trade]],
     own_positions: dict[Symbol, int],
     profit_loss_by_product: dict[Symbol, float],
 ) -> list[Trade]:
@@ -89,7 +88,6 @@ def process_sell_order(
     timestamp: int,
     order: Order,
     order_depth: OrderDepth,
-    own_trades: dict[Symbol, list[Trade]],
     own_positions: dict[Symbol, int],
     profit_loss_by_product: dict[Symbol, float],
 ) -> list[Trade]:
@@ -118,15 +116,14 @@ def process_order(
     timestamp: int,
     order: Order,
     order_depths: dict[Symbol, OrderDepth],
-    own_trades: dict[Symbol, list[Trade]],
     own_positions: dict[Symbol, int],
     profit_loss_by_product: dict[Symbol, float],
 ) -> list[Trade]:
     order_depth = order_depths[order.symbol]
     if order.quantity > 0:
-        return process_buy_order(timestamp, order, order_depth, own_trades, own_positions, profit_loss_by_product)
+        return process_buy_order(timestamp, order, order_depth, own_positions, profit_loss_by_product)
     elif order.quantity < 0:
-        return process_sell_order(timestamp, order, order_depth, own_trades, own_positions, profit_loss_by_product)
+        return process_sell_order(timestamp, order, order_depth, own_positions, profit_loss_by_product)
     else:
         return []
 
@@ -274,14 +271,7 @@ def run_backtest(trader: Any, data: DayData) -> DayResult:
             new_trades = []
 
             for order in orders_by_symbol.get(product, []):
-                new_trades.extend(process_order(
-                    timestamp,
-                    order,
-                    order_depths,
-                    own_trades,
-                    own_positions,
-                    profit_loss_by_product,
-                ))
+                new_trades.extend(process_order(timestamp, order, order_depths, own_positions, profit_loss_by_product))
 
             if len(new_trades) > 0:
                 own_trades[product] = new_trades
