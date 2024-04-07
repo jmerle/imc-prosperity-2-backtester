@@ -132,6 +132,13 @@ def open_visualizer(output_file: Path) -> None:
     http_server.handle_request()
     http_server.handle_request()
 
+def format_path(path: Path) -> str:
+    cwd = Path.cwd()
+    if path.is_relative_to(cwd):
+        return str(path.relative_to(cwd))
+    else:
+        return str(path)
+
 def main() -> None:
     parser = ArgumentParser(prog="prosperity2bt", description="Run a backtest.")
     parser.add_argument("algorithm", type=str, help="path to the Python file containing the algoritm to backtest")
@@ -156,7 +163,7 @@ def main() -> None:
     if len(days) > 1:
         print_overall_summary(results)
 
-    print(f"Successfully saved backtest results to {output_file}")
+    print(f"Successfully saved backtest results to {format_path(output_file)}")
 
     if args.vis:
         open_visualizer(output_file)
