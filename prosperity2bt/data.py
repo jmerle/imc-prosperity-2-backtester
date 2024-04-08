@@ -83,7 +83,7 @@ def read_day_data(data_root: Optional[Path], round: int, day: int) -> DayData:
 
             trades.append(Trade(
                 symbol=columns[3],
-                price=int(columns[5]),
+                price=int(float(columns[5])),
                 quantity=int(columns[6]),
                 buyer=columns[1],
                 seller=columns[2],
