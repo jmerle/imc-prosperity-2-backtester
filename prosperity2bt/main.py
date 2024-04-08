@@ -147,6 +147,7 @@ def main() -> None:
     parser.add_argument("--vis", action="store_true", help="open backtest result in visualizer when done")
     parser.add_argument("--out", type=str, help="path to save output log to (defaults to backtests/<timestamp>.log)")
     parser.add_argument("--data", type=str, help="path to data directory (must look similar in structure to https://github.com/jmerle/imc-prosperity-2-backtester/tree/master/prosperity2bt/resources)")
+    parser.add_argument("--print", action="store_true", help="print the trader's output to stdout while it's running")
     parser.add_argument("-v", "--version", action="version", version=f"%(prog)s {metadata.version(__package__)}")
 
     args = parser.parse_args()
@@ -155,7 +156,7 @@ def main() -> None:
     days = parse_days(args.days, args.data)
     output_file = parse_out(args.out)
 
-    results = [run_backtest(Trader(), day) for day in days]
+    results = [run_backtest(Trader(), day, args.print) for day in days]
     merged_results = reduce(lambda a, b: merge_results(a, b, args.merge_pnl), results)
 
     write_output(output_file, merged_results)

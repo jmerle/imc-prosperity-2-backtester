@@ -1,7 +1,8 @@
 from collections import defaultdict
-from contextlib import redirect_stdout
+from contextlib import closing, redirect_stdout
 from dataclasses import dataclass
 from io import StringIO
+from IPython.utils.io import Tee
 from prosperity2bt.data import DayData, LIMITS, PriceRow
 from prosperity2bt.datamodel import Observation, Order, OrderDepth, Symbol, Trade, TradingState
 from typing import Any
@@ -192,7 +193,7 @@ def print_backtest_summary(result: DayResult, tradable_products: list[str]) -> N
 
     print(f"Total profit: {total_profit:,.0f}\n")
 
-def run_backtest(trader: Any, data: DayData) -> DayResult:
+def run_backtest(trader: Any, data: DayData, print_output: bool) -> DayResult:
     print(f"Backtesting {trader.__module__} on round {data.round} day {data.day}")
 
     result = DayResult(data.round, data.day, [], [], [])
@@ -247,8 +248,14 @@ def run_backtest(trader: Any, data: DayData) -> DayResult:
         )
 
         stdout = StringIO()
-        with redirect_stdout(stdout):
-            orders_by_symbol, conversions, trader_data = trader.run(state)
+        stdout.close = lambda: None
+
+        if print_output:
+            with closing(Tee(stdout)):
+                orders_by_symbol, conversions, trader_data = trader.run(state)
+        else:
+            with redirect_stdout(stdout):
+                orders_by_symbol, conversions, trader_data = trader.run(state)
 
         for product in tradable_products:
             price = prices_by_timestamp[timestamp][product]

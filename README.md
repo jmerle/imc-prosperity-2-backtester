@@ -47,6 +47,10 @@ $ prosperity2bt example/starter.py 1 --out example.log
 # Backtest on custom data
 # Requires the value passed to `--data` to be a path to a directory that is similar in structure to https://github.com/jmerle/imc-prosperity-2-backtester/tree/master/prosperity2bt/resources
 $ prosperity2bt example/starter.py 1 --data prosperity2bt/resources
+
+# Print trader's output to stdout while running
+# This may be helpful when debugging a broken trader
+$ prosperity2bt example/starter.py 1 --print
 ```
 
 ## Order Matching
