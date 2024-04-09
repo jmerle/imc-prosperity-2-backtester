@@ -168,3 +168,6 @@ def main() -> None:
 
     if args.vis:
         open_visualizer(output_file)
+
+if __name__ == "__main__":
+    main()

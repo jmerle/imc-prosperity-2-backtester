@@ -21,7 +21,7 @@ requires-python = ">= 3.9"
 dependencies = ["ipython", "jsonpickle"]
 
 [project.scripts]
-prosperity2bt = "prosperity2bt.main:main"
+prosperity2bt = "prosperity2bt.__main__:main"
 
 [project.urls]
 Repository = "https://github.com/jmerle/imc-prosperity-2-backtester"
