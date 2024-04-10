@@ -34,6 +34,12 @@ class DayResult:
     activity_logs: list[ActivityLogRow]
     trades: list[Trade]
 
+@dataclass
+class MarketTrade:
+    trade: Trade
+    buy_quantity: int
+    sell_quantity: int
+
 def check_limits(
     tradable_products: list[str],
     orders_by_symbol: dict[Symbol, list[Order]],
@@ -63,17 +69,18 @@ def process_buy_order(
     order_depth: OrderDepth,
     own_positions: dict[Symbol, int],
     profit_loss_by_product: dict[Symbol, float],
+    market_trades: list[MarketTrade],
 ) -> list[Trade]:
     new_trades = []
 
-    price_matches = sorted(price for price in order_depth.sell_orders.keys() if price <= order.price)
+    price_matches = sorted((price for price in order_depth.sell_orders.keys() if price <= order.price), reverse=True)
     for price in price_matches:
         volume = min(order.quantity, abs(order_depth.sell_orders[price]))
 
-        new_trades.append(Trade(order.symbol, price, volume, "SUBMISSION", "", timestamp))
+        new_trades.append(Trade(order.symbol, order.price, volume, "SUBMISSION", "", timestamp))
 
         own_positions[order.symbol] += volume
-        profit_loss_by_product[order.symbol] -= price * volume
+        profit_loss_by_product[order.symbol] -= order.price * volume
 
         order_depth.sell_orders[price] += volume
         if order_depth.sell_orders[price] == 0:
@@ -81,7 +88,24 @@ def process_buy_order(
 
         order.quantity -= volume
         if order.quantity == 0:
-            break
+            return new_trades
+
+    for trade in market_trades:
+        if trade.sell_quantity == 0 or trade.trade.price > order.price:
+            continue
+
+        volume = min(order.quantity, trade.sell_quantity)
+
+        new_trades.append(Trade(order.symbol, order.price, volume, "SUBMISSION", trade.trade.seller, timestamp))
+
+        own_positions[order.symbol] += volume
+        profit_loss_by_product[order.symbol] -= order.price * volume
+
+        trade.sell_quantity -= volume
+
+        order.quantity -= volume
+        if order.quantity == 0:
+            return new_trades
 
     return new_trades
 
@@ -91,17 +115,18 @@ def process_sell_order(
     order_depth: OrderDepth,
     own_positions: dict[Symbol, int],
     profit_loss_by_product: dict[Symbol, float],
+    market_trades: list[MarketTrade],
 ) -> list[Trade]:
     new_trades = []
 
-    price_matches = sorted((price for price in order_depth.buy_orders.keys() if price >= order.price), reverse=True)
+    price_matches = sorted(price for price in order_depth.buy_orders.keys() if price >= order.price)
     for price in price_matches:
         volume = min(abs(order.quantity), order_depth.buy_orders[price])
 
-        new_trades.append(Trade(order.symbol, price, volume, "", "SUBMISSION", timestamp))
+        new_trades.append(Trade(order.symbol, order.price, volume, "", "SUBMISSION", timestamp))
 
         own_positions[order.symbol] -= volume
-        profit_loss_by_product[order.symbol] += price * volume
+        profit_loss_by_product[order.symbol] += order.price * volume
 
         order_depth.buy_orders[price] -= volume
         if order_depth.buy_orders[price] == 0:
@@ -109,7 +134,24 @@ def process_sell_order(
 
         order.quantity += volume
         if order.quantity == 0:
-            break
+            return new_trades
+
+    for trade in market_trades:
+        if trade.buy_quantity == 0 or trade.trade.price < order.price:
+            continue
+
+        volume = min(abs(order.quantity), trade.buy_quantity)
+
+        new_trades.append(Trade(order.symbol, order.price, volume, trade.trade.buyer, "SUBMISSION", timestamp))
+
+        own_positions[order.symbol] -= volume
+        profit_loss_by_product[order.symbol] += order.price * volume
+
+        trade.buy_quantity -= volume
+
+        order.quantity += volume
+        if order.quantity == 0:
+            return new_trades
 
     return new_trades
 
@@ -119,12 +161,13 @@ def process_order(
     order_depths: dict[Symbol, OrderDepth],
     own_positions: dict[Symbol, int],
     profit_loss_by_product: dict[Symbol, float],
+    market_trades: list[MarketTrade],
 ) -> list[Trade]:
     order_depth = order_depths[order.symbol]
     if order.quantity > 0:
-        return process_buy_order(timestamp, order, order_depth, own_positions, profit_loss_by_product)
+        return process_buy_order(timestamp, order, order_depth, own_positions, profit_loss_by_product, market_trades)
     elif order.quantity < 0:
-        return process_sell_order(timestamp, order, order_depth, own_positions, profit_loss_by_product)
+        return process_sell_order(timestamp, order, order_depth, own_positions, profit_loss_by_product, market_trades)
     else:
         return []
 
@@ -274,17 +317,31 @@ def run_backtest(trader: Any, data: DayData, print_output: bool) -> DayResult:
             "timestamp": timestamp,
         })
 
+        current_market_trades = {}
+        for product, trades in trades_by_timestamp[timestamp].items():
+            current_market_trades[product] = [MarketTrade(t, t.quantity, t.quantity) for t in trades]
+
         for product in tradable_products:
             new_trades = []
 
             for order in orders_by_symbol.get(product, []):
-                new_trades.extend(process_order(timestamp, order, order_depths, own_positions, profit_loss_by_product))
+                new_trades.extend(process_order(
+                    timestamp,
+                    order,
+                    order_depths,
+                    own_positions,
+                    profit_loss_by_product,
+                    current_market_trades.get(product, []),
+                ))
 
             if len(new_trades) > 0:
                 own_trades[product] = new_trades
 
-        for product, trades in trades_by_timestamp[timestamp].items():
-            market_trades[product] = trades
+        for product, trades in current_market_trades.items():
+            for trade in trades:
+                trade.trade.quantity = min(trade.buy_quantity, trade.sell_quantity)
+
+            market_trades[product] = [t.trade for t in trades if t.trade.quantity > 0]
 
         current_trades = []
         for product in tradable_products:
