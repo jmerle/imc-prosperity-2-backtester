@@ -73,14 +73,14 @@ def process_buy_order(
 ) -> list[Trade]:
     new_trades = []
 
-    price_matches = sorted((price for price in order_depth.sell_orders.keys() if price <= order.price), reverse=True)
+    price_matches = sorted(price for price in order_depth.sell_orders.keys() if price <= order.price)
     for price in price_matches:
         volume = min(order.quantity, abs(order_depth.sell_orders[price]))
 
-        new_trades.append(Trade(order.symbol, order.price, volume, "SUBMISSION", "", timestamp))
+        new_trades.append(Trade(order.symbol, price, volume, "SUBMISSION", "", timestamp))
 
         own_positions[order.symbol] += volume
-        profit_loss_by_product[order.symbol] -= order.price * volume
+        profit_loss_by_product[order.symbol] -= price * volume
 
         order_depth.sell_orders[price] += volume
         if order_depth.sell_orders[price] == 0:
@@ -119,14 +119,14 @@ def process_sell_order(
 ) -> list[Trade]:
     new_trades = []
 
-    price_matches = sorted(price for price in order_depth.buy_orders.keys() if price >= order.price)
+    price_matches = sorted((price for price in order_depth.buy_orders.keys() if price >= order.price), reverse=True)
     for price in price_matches:
         volume = min(abs(order.quantity), order_depth.buy_orders[price])
 
-        new_trades.append(Trade(order.symbol, order.price, volume, "", "SUBMISSION", timestamp))
+        new_trades.append(Trade(order.symbol, price, volume, "", "SUBMISSION", timestamp))
 
         own_positions[order.symbol] -= volume
-        profit_loss_by_product[order.symbol] += order.price * volume
+        profit_loss_by_product[order.symbol] += price * volume
 
         order_depth.buy_orders[price] -= volume
         if order_depth.buy_orders[price] == 0:
