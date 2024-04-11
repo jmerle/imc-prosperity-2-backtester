@@ -51,6 +51,9 @@ $ prosperity2bt example/starter.py 1 --data prosperity2bt/resources
 # Print trader's output to stdout while running
 # This may be helpful when debugging a broken trader
 $ prosperity2bt example/starter.py 1 --print
+
+# Only match orders against order depths, not against market trades
+$ prosperity2bt example/starter.py 1 --no-trades-matching
 ```
 
 ## Order Matching

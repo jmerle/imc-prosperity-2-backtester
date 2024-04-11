@@ -236,7 +236,7 @@ def print_backtest_summary(result: DayResult, tradable_products: list[str]) -> N
 
     print(f"Total profit: {total_profit:,.0f}\n")
 
-def run_backtest(trader: Any, data: DayData, print_output: bool) -> DayResult:
+def run_backtest(trader: Any, data: DayData, print_output: bool, disable_trades_matching: bool) -> DayResult:
     print(f"Backtesting {trader.__module__} on round {data.round} day {data.day}")
 
     result = DayResult(data.round, data.day, [], [], [])
@@ -331,7 +331,7 @@ def run_backtest(trader: Any, data: DayData, print_output: bool) -> DayResult:
                     order_depths,
                     own_positions,
                     profit_loss_by_product,
-                    current_market_trades.get(product, []),
+                    [] if disable_trades_matching else current_market_trades.get(product, []),
                 ))
 
             if len(new_trades) > 0:
