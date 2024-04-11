@@ -276,7 +276,7 @@ def run_backtest(trader: Any, data: DayData, print_output: bool, disable_trades_
             for price, volume in zip(row.ask_prices, row.ask_volumes):
                 order_depths[product].sell_orders[price] = -volume
 
-        position = {product: position for product, position in own_positions.items() if position != 0}
+        position = dict(own_positions)
         observations = Observation({}, {})
 
         state = TradingState(
