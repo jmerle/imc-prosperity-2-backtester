@@ -276,9 +276,6 @@ def run_backtest(trader: Any, data: DayData, print_output: bool, disable_trades_
             for price, volume in zip(row.ask_prices, row.ask_volumes):
                 order_depths[product].sell_orders[price] = -volume
 
-        position = dict(own_positions)
-        observations = Observation({}, {})
-
         state = TradingState(
             trader_data,
             timestamp,
@@ -286,8 +283,8 @@ def run_backtest(trader: Any, data: DayData, print_output: bool, disable_trades_
             order_depths,
             dict(own_trades),
             dict(market_trades),
-            position,
-            observations,
+            dict(own_positions),
+            Observation({}, {}),
         )
 
         stdout = StringIO()
