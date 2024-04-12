@@ -41,9 +41,9 @@ class MarketTrade:
     sell_quantity: int
 
 def check_limits(
-    tradable_products: list[str],
-    orders_by_symbol: dict[Symbol, list[Order]],
-    own_positions: dict[str, int],
+        tradable_products: list[str],
+        orders_by_symbol: dict[Symbol, list[Order]],
+        own_positions: dict[str, int],
 ) -> None:
     sandbox_log_lines = []
     for product in tradable_products:
@@ -64,12 +64,12 @@ def check_limits(
     return "\n" + "\n".join(sandbox_log_lines)
 
 def process_buy_order(
-    timestamp: int,
-    order: Order,
-    order_depth: OrderDepth,
-    own_positions: dict[Symbol, int],
-    profit_loss_by_product: dict[Symbol, float],
-    market_trades: list[MarketTrade],
+        timestamp: int,
+        order: Order,
+        order_depth: OrderDepth,
+        own_positions: dict[Symbol, int],
+        profit_loss_by_product: dict[Symbol, float],
+        market_trades: list[MarketTrade],
 ) -> list[Trade]:
     new_trades = []
 
@@ -110,12 +110,12 @@ def process_buy_order(
     return new_trades
 
 def process_sell_order(
-    timestamp: int,
-    order: Order,
-    order_depth: OrderDepth,
-    own_positions: dict[Symbol, int],
-    profit_loss_by_product: dict[Symbol, float],
-    market_trades: list[MarketTrade],
+        timestamp: int,
+        order: Order,
+        order_depth: OrderDepth,
+        own_positions: dict[Symbol, int],
+        profit_loss_by_product: dict[Symbol, float],
+        market_trades: list[MarketTrade],
 ) -> list[Trade]:
     new_trades = []
 
@@ -156,12 +156,12 @@ def process_sell_order(
     return new_trades
 
 def process_order(
-    timestamp: int,
-    order: Order,
-    order_depths: dict[Symbol, OrderDepth],
-    own_positions: dict[Symbol, int],
-    profit_loss_by_product: dict[Symbol, float],
-    market_trades: list[MarketTrade],
+        timestamp: int,
+        order: Order,
+        order_depths: dict[Symbol, OrderDepth],
+        own_positions: dict[Symbol, int],
+        profit_loss_by_product: dict[Symbol, float],
+        market_trades: list[MarketTrade],
 ) -> list[Trade]:
     order_depth = order_depths[order.symbol]
     if order.quantity > 0:
@@ -183,11 +183,11 @@ def trade_to_dict(trade: Trade) -> dict[str, Any]:
     }
 
 def create_activity_log_row(
-    day: int,
-    timestamp: int,
-    product: str,
-    price: PriceRow,
-    profit_loss: float,
+        day: int,
+        timestamp: int,
+        product: str,
+        price: PriceRow,
+        profit_loss: float,
 ) -> ActivityLogRow:
     bid_prices_len = len(price.bid_prices)
     bid_volumes_len = len(price.bid_volumes)
@@ -236,11 +236,16 @@ def print_backtest_summary(result: DayResult, tradable_products: list[str]) -> N
 
     print(f"Total profit: {total_profit:,.0f}\n")
 
-def run_backtest(trader: Any, data: DayData, print_output: bool, disable_trades_matching: bool) -> DayResult:
+def run_backtest(
+        trader: Any,
+        data: DayData,
+        print_output: bool,
+        disable_trades_matching: bool,
+        trader_data: str = ""
+) -> DayResult:
     print(f"Backtesting {trader.__module__} on round {data.round} day {data.day}")
 
     result = DayResult(data.round, data.day, [], [], [])
-    trader_data = ""
 
     prices_by_timestamp = defaultdict(dict)
     for row in data.prices:
@@ -349,4 +354,4 @@ def run_backtest(trader: Any, data: DayData, print_output: bool, disable_trades_
         result.trades.extend(current_trades)
 
     print_backtest_summary(result, tradable_products)
-    return result
+    return result, trader_data

@@ -157,7 +157,18 @@ def main() -> None:
     days = parse_days(args.days, args.data)
     output_file = parse_out(args.out)
 
-    results = [run_backtest(Trader(), day, args.print, args.no_trades_matching) for day in days]
+    results: list[DayResult] = []
+    trader_data: str = ""
+    for day in days:
+        day_result, trader_data = run_backtest(
+            Trader(),
+            day,
+            args.print,
+            args.no_trades_matching,
+            trader_data,
+        )
+        results.append(day_result)
+
     merged_results = reduce(lambda a, b: merge_results(a, b, args.merge_pnl), results)
 
     write_output(output_file, merged_results)
