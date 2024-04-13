@@ -1,9 +1,8 @@
-from contextlib import contextmanager
+from collections import defaultdict
 from dataclasses import dataclass
-from importlib import resources
-from pathlib import Path
 from prosperity2bt.datamodel import Symbol, Trade
-from typing import Iterator, Optional
+from prosperity2bt.file_reader import FileReader
+from typing import Optional
 
 LIMITS = {
     "AMETHYSTS": 20,
@@ -22,18 +21,6 @@ class PriceRow:
     mid_price: float
     profit_loss: float
 
-@dataclass
-class DayData:
-    round: int
-    day: int
-
-    prices: list[PriceRow]
-    trades: list[Trade]
-
-@contextmanager
-def wrap_in_context_manager(path: Path) -> Iterator[Path]:
-    yield path
-
 def get_column_values(columns: list[str], indices: list[int]) -> list[int]:
     values = []
 
@@ -46,21 +33,43 @@ def get_column_values(columns: list[str], indices: list[int]) -> list[int]:
 
     return values
 
-def read_day_data(data_root: Optional[Path], round: int, day: int) -> DayData:
-    prices_file_name = f"prices_round_{round}_day_{day}.csv"
-    trades_file_name = f"trades_round_{round}_day_{day}_nn.csv"
+@dataclass
+class BacktestData:
+    round_num: int
+    day_num: int
 
-    if data_root is not None:
-        round_dir = data_root / f"round{round}"
-        prices_file = wrap_in_context_manager(round_dir / prices_file_name)
-        trades_file = wrap_in_context_manager(round_dir / trades_file_name)
-    else:
-        round_dir = resources.files(f"prosperity2bt.resources.round{round}")
-        prices_file = resources.as_file(round_dir / prices_file_name)
-        trades_file = resources.as_file(round_dir / trades_file_name)
+    prices: dict[int, dict[Symbol, PriceRow]]
+    trades: dict[int, dict[Symbol, list[Trade]]]
+    products: list[Symbol]
+    profit_loss: dict[Symbol, int]
 
+def create_backtest_data(round_num: int, day_num: int, prices: list[PriceRow], trades: list[Trade]) -> BacktestData:
+    prices_by_timestamp: dict[int, dict[Symbol, PriceRow]] = defaultdict(dict)
+    for row in prices:
+        prices_by_timestamp[row.timestamp][row.product] = row
+
+    trades_by_timestamp: dict[int, dict[Symbol, list[Trade]]] = defaultdict(lambda: defaultdict(list))
+    for trade in trades:
+        trades_by_timestamp[trade.timestamp][trade.symbol].append(trade)
+
+    products = sorted(set(row.product for row in prices))
+    profit_loss = {product: 0 for product in products}
+
+    return BacktestData(
+        round_num=round_num,
+        day_num=day_num,
+        prices=prices_by_timestamp,
+        trades=trades_by_timestamp,
+        products=products,
+        profit_loss=profit_loss,
+    )
+
+def read_day_data(file_reader: FileReader, round_num: int, day_num: int) -> Optional[BacktestData]:
     prices = []
-    with prices_file as file:
+    with file_reader.file([f"round{round_num}", f"prices_round_{round_num}_day_{day_num}.csv"]) as file:
+        if file is None:
+            return None
+
         for line in file.read_text(encoding="utf-8").splitlines()[1:]:
             columns = line.split(";")
 
@@ -77,31 +86,23 @@ def read_day_data(data_root: Optional[Path], round: int, day: int) -> DayData:
             ))
 
     trades = []
-    with trades_file as file:
-        for line in file.read_text(encoding="utf-8").splitlines()[1:]:
-            columns = line.split(";")
+    for suffix in ["wn", "nn"]:
+        with file_reader.file([f"round{round_num}", f"trades_round_{round_num}_day_{day_num}_{suffix}.csv"]) as file:
+            if file is None:
+                continue
 
-            trades.append(Trade(
-                symbol=columns[3],
-                price=int(float(columns[5])),
-                quantity=int(columns[6]),
-                buyer=columns[1],
-                seller=columns[2],
-                timestamp=int(columns[0]),
-            ))
+            for line in file.read_text(encoding="utf-8").splitlines()[1:]:
+                columns = line.split(";")
 
-    return DayData(round, day, prices, trades)
+                trades.append(Trade(
+                    symbol=columns[3],
+                    price=int(float(columns[5])),
+                    quantity=int(columns[6]),
+                    buyer=columns[1],
+                    seller=columns[2],
+                    timestamp=int(columns[0]),
+                ))
 
-def read_round_data(data_root: Optional[Path], round: int) -> list[DayData]:
-    if data_root is not None:
-        files = (data_root / f"round{round}").iterdir()
-    else:
-        files = resources.files(f"prosperity2bt.resources.round{round}").iterdir()
+            break
 
-    days = []
-    for file in files:
-        if file.name.startswith("prices_round_"):
-            day = int(file.stem.split("_")[-1])
-            days.append(read_day_data(data_root, round, day))
-
-    return days
+    return create_backtest_data(round_num, day_num, prices, trades)
