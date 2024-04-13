@@ -1,5 +1,0 @@
-LIMITS = {
-    "AMETHYSTS": 20,
-    "STARFRUIT": 20,
-    "ORCHIDS": 100,
-}
