@@ -5,7 +5,7 @@ from collections import defaultdict
 from datetime import datetime
 from functools import partial, reduce
 from http.server import HTTPServer, SimpleHTTPRequestHandler
-from importlib import import_module, metadata, reload
+from importlib import import_module, metadata
 from pathlib import Path
 from prosperity2bt.components.basic_products import BasicProductsComponent
 from prosperity2bt.components.orchids import OrchidsComponent
@@ -14,11 +14,11 @@ from prosperity2bt.models import DayResults
 from prosperity2bt.runner import DayConfig, run_backtest
 from typing import Any, Optional
 
-def parse_algorithm(algorithm: str) -> Any:
+def parse_algorithm(algorithm: str) -> tuple[Any, Any]:
     algorithm_path = Path(algorithm).expanduser().resolve()
 
     sys.path.append(str(algorithm_path.parent))
-    return import_module(algorithm_path.stem)
+    return import_module(algorithm_path.stem).Trader
 
 def parse_days(args: Any) -> list[DayConfig]:
     if args.data is not None:
@@ -188,7 +188,7 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    trader_module = parse_algorithm(args.algorithm)
+    Trader = parse_algorithm(args.algorithm)
     days = parse_days(args)
     output_file = parse_out(args.out)
 
@@ -196,10 +196,7 @@ def main() -> None:
     for day in days:
         print(f"Backtesting {args.algorithm} on round {day.round_num} day {day.day_num}")
 
-        reload(trader_module)
-        trader = trader_module.Trader()
-
-        result = run_backtest(trader, day)
+        result = run_backtest(Trader(), day)
         print_day_summary(result)
 
         results.append(result)
