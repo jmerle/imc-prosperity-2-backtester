@@ -182,7 +182,16 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    trader_module = parse_algorithm(args.algorithm)
+    try:
+        trader_module = parse_algorithm(args.algorithm)
+    except ModuleNotFoundError:
+        print(f"{args.algorithm} is not a valid algorithm file")
+        sys.exit(1)
+
+    if not hasattr(trader_module, "Trader"):
+        print(f"{args.algorithm} does not expose a Trader class")
+        sys.exit(1)
+
     days = parse_days(args.days, args.data)
     output_file = parse_out(args.out)
 
