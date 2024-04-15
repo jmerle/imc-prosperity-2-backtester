@@ -7,6 +7,11 @@ from typing import Optional
 LIMITS = {
     "AMETHYSTS": 20,
     "STARFRUIT": 20,
+    "ORCHIDS": 100,
+    "CHOCOLATE": 250,
+    "STRAWBERRIES": 350,
+    "ROSES": 60,
+    "GIFT_BASKET": 60,
 }
 
 @dataclass
