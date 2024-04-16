@@ -156,8 +156,12 @@ class HTTPRequestHandler(SimpleHTTPRequestHandler):
 def open_visualizer(output_file: Path) -> None:
     http_handler = partial(HTTPRequestHandler, directory=output_file.parent)
     http_server = HTTPServer(("localhost", 0), http_handler)
+    http_server.timeout = 5
 
     webbrowser.open(f"https://jmerle.github.io/imc-prosperity-2-visualizer/?open=http://localhost:{http_server.server_port}/{output_file.name}")
+
+    # Chrome makes 2 requests: 1 OPTIONS request to check for CORS headers and 1 GET request to get the data
+    # Some users reported their browser only makes 1 request, in that case the second call is terminated after `http_server.timeout` seconds
     http_server.handle_request()
     http_server.handle_request()
 
