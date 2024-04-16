@@ -15,6 +15,8 @@ from typing import Any, Optional
 
 def parse_algorithm(algorithm: str) -> Any:
     algorithm_path = Path(algorithm).expanduser().resolve()
+    if not algorithm_path.is_file():
+        raise ModuleNotFoundError(f"{algorithm_path} is not a file")
 
     sys.path.append(str(algorithm_path.parent))
     return import_module(algorithm_path.stem)
@@ -54,6 +56,10 @@ def parse_days(days: list[str], data_root: Optional[str]) -> list[BacktestData]:
                 continue
 
             parsed_days.extend(parsed_days_in_round)
+
+    if len(parsed_days) == 0:
+        print("Error: did not find data for any requested round/day")
+        sys.exit(1)
 
     return parsed_days
 
@@ -188,8 +194,8 @@ def main() -> None:
 
     try:
         trader_module = parse_algorithm(args.algorithm)
-    except ModuleNotFoundError:
-        print(f"{args.algorithm} is not a valid algorithm file")
+    except ModuleNotFoundError as e:
+        print(f"{args.algorithm} is not a valid algorithm file: {e}")
         sys.exit(1)
 
     if not hasattr(trader_module, "Trader"):
