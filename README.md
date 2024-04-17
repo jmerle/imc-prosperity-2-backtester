@@ -44,6 +44,9 @@ $ prosperity2bt example/starter.py 1 --vis
 # Write algorithm output to custom file
 $ prosperity2bt example/starter.py 1 --out example.log
 
+# Skip saving the output log to a file
+$ prosperity2bt example/starter.py 1 --no-out
+
 # Backtest on custom data
 # Requires the value passed to `--data` to be a path to a directory that is similar in structure to https://github.com/jmerle/imc-prosperity-2-backtester/tree/master/prosperity2bt/resources
 $ prosperity2bt example/starter.py 1 --data prosperity2bt/resources

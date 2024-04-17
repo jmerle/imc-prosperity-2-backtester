@@ -63,12 +63,15 @@ def parse_days(days: list[str], data_root: Optional[str]) -> list[BacktestData]:
 
     return parsed_days
 
-def parse_out(out: Optional[str]) -> Path:
+def parse_out(out: Optional[str], no_out: bool) -> Optional[Path]:
     if out is not None:
         return Path(out).expanduser().resolve()
-    else:
-        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        return Path.cwd() / "backtests" / f"{timestamp}.log"
+
+    if no_out:
+        return None
+
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    return Path.cwd() / "backtests" / f"{timestamp}.log"
 
 def print_day_summary(result: BacktestResult) -> None:
     last_timestamp = result.activity_logs[-1].timestamp
@@ -149,7 +152,7 @@ def print_overall_summary(results: list[BacktestResult]) -> None:
         print(f"Round {result.round_num} day {result.day_num}: {profit:,.0f}")
         total_profit += profit
 
-    print(f"Total profit: {total_profit:,.0f}\n")
+    print(f"Total profit: {total_profit:,.0f}")
 
 class HTTPRequestHandler(SimpleHTTPRequestHandler):
     def end_headers(self) -> None:
@@ -188,9 +191,18 @@ def main() -> None:
     parser.add_argument("--data", type=str, help="path to data directory (must look similar in structure to https://github.com/jmerle/imc-prosperity-2-backtester/tree/master/prosperity2bt/resources)")
     parser.add_argument("--print", action="store_true", help="print the trader's output to stdout while it's running")
     parser.add_argument("--no-trades-matching", action="store_true", help="disable matching orders against market trades")
+    parser.add_argument("--no-out", action="store_true", help="skip saving the output log to a file")
     parser.add_argument("-v", "--version", action="version", version=f"%(prog)s {metadata.version(__package__)}")
 
     args = parser.parse_args()
+
+    if args.vis and args.no_out:
+        print("Error: --vis and --no-out are mutually exclusive")
+        sys.exit(1)
+
+    if args.out is not None and args.no_out:
+        print("Error: --out and --no-out are mutually exclusive")
+        sys.exit(1)
 
     try:
         trader_module = parse_algorithm(args.algorithm)
@@ -203,7 +215,7 @@ def main() -> None:
         sys.exit(1)
 
     days = parse_days(args.days, args.data)
-    output_file = parse_out(args.out)
+    output_file = parse_out(args.out, args.no_out)
 
     results = []
     for day in days:
@@ -219,12 +231,12 @@ def main() -> None:
 
     merged_results = reduce(lambda a, b: merge_results(a, b, args.merge_pnl), results)
 
-    write_output(output_file, merged_results)
-
     if len(days) > 1:
         print_overall_summary(results)
 
-    print(f"Successfully saved backtest results to {format_path(output_file)}")
+    if output_file is not None:
+        write_output(output_file, merged_results)
+        print(f"\nSuccessfully saved backtest results to {format_path(output_file)}")
 
     if args.vis:
         open_visualizer(output_file)
