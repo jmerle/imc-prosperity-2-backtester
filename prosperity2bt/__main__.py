@@ -192,6 +192,7 @@ def main() -> None:
     parser.add_argument("--print", action="store_true", help="print the trader's output to stdout while it's running")
     parser.add_argument("--no-trades-matching", action="store_true", help="disable matching orders against market trades")
     parser.add_argument("--no-out", action="store_true", help="skip saving the output log to a file")
+    parser.add_argument("--no-progress", action="store_true", help="don't show progress bars")
     parser.add_argument("-v", "--version", action="version", version=f"%(prog)s {metadata.version(__package__)}")
 
     args = parser.parse_args()
@@ -224,7 +225,7 @@ def main() -> None:
         reload(trader_module)
         trader = trader_module.Trader()
 
-        result = run_backtest(trader, day, args.print, args.no_trades_matching)
+        result = run_backtest(trader, day, args.print, args.no_trades_matching, args.no_progress)
         print_day_summary(result)
 
         results.append(result)

@@ -4,6 +4,7 @@ from IPython.utils.io import Tee
 from prosperity2bt.data import BacktestData, LIMITS
 from prosperity2bt.datamodel import Observation, Order, OrderDepth, Symbol, Trade, TradingState
 from prosperity2bt.models import ActivityLogRow, BacktestResult, MarketTrade, SandboxLogRow, TradeRow
+from tqdm import tqdm
 from typing import Any
 
 def prepare_state(state: TradingState, data: BacktestData) -> None:
@@ -210,7 +211,13 @@ def match_orders(
         state.market_trades[product] = remaining_market_trades
         result.trades.extend([TradeRow(trade) for trade in remaining_market_trades])
 
-def run_backtest(trader: Any, data: BacktestData, print_output: bool, disable_trades_matching: bool) -> BacktestResult:
+def run_backtest(
+    trader: Any,
+    data: BacktestData,
+    print_output: bool,
+    disable_trades_matching: bool,
+    disable_progress_bar: bool,
+) -> BacktestResult:
     trader_data = ""
     state = TradingState(
         traderData=trader_data,
@@ -231,7 +238,10 @@ def run_backtest(trader: Any, data: BacktestData, print_output: bool, disable_tr
         trades=[],
     )
 
-    for timestamp in sorted(data.prices.keys()):
+    sorted_timestamps = sorted(data.prices.keys())
+    timestamps_iterator = sorted_timestamps if disable_progress_bar else tqdm(sorted_timestamps)
+
+    for timestamp in timestamps_iterator:
         state.timestamp = timestamp
         state.traderData = trader_data
 
