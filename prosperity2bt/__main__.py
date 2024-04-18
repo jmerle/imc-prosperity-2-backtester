@@ -162,17 +162,16 @@ class HTTPRequestHandler(SimpleHTTPRequestHandler):
     def log_message(self, format: str, *args: Any) -> None:
         return
 
-def open_visualizer(output_file: Path) -> None:
+def open_visualizer(output_file: Path, vis_requests: int) -> None:
     http_handler = partial(HTTPRequestHandler, directory=output_file.parent)
     http_server = HTTPServer(("localhost", 0), http_handler)
-    http_server.timeout = 5
 
     webbrowser.open(f"https://jmerle.github.io/imc-prosperity-2-visualizer/?open=http://localhost:{http_server.server_port}/{output_file.name}")
 
     # Chrome makes 2 requests: 1 OPTIONS request to check for CORS headers and 1 GET request to get the data
-    # Some users reported their browser only makes 1 request, in that case the second call is terminated after `http_server.timeout` seconds
-    http_server.handle_request()
-    http_server.handle_request()
+    # Some users reported their browser only makes 1 request, which is covered by the --vis-requests option
+    for _ in range(vis_requests):
+        http_server.handle_request()
 
 def format_path(path: Path) -> str:
     cwd = Path.cwd()
@@ -193,6 +192,7 @@ def main() -> None:
     parser.add_argument("--no-trades-matching", action="store_true", help="disable matching orders against market trades")
     parser.add_argument("--no-out", action="store_true", help="skip saving the output log to a file")
     parser.add_argument("--no-progress", action="store_true", help="don't show progress bars")
+    parser.add_argument("--vis-requests", type=int, default=2, help="number of requests the visualizer is expected to make to the backtester's HTTP server when using --vis")
     parser.add_argument("-v", "--version", action="version", version=f"%(prog)s {metadata.version(__package__)}")
 
     args = parser.parse_args()
@@ -240,7 +240,7 @@ def main() -> None:
         print(f"\nSuccessfully saved backtest results to {format_path(output_file)}")
 
     if args.vis:
-        open_visualizer(output_file)
+        open_visualizer(output_file, args.vis_requests)
 
 if __name__ == "__main__":
     main()
