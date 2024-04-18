@@ -162,7 +162,7 @@ class HTTPRequestHandler(SimpleHTTPRequestHandler):
     def log_message(self, format: str, *args: Any) -> None:
         return
 
-def open_visualizer(output_file: Path, vis_requests: int) -> None:
+def open_visualizer(output_file: Path, no_requests: int) -> None:
     http_handler = partial(HTTPRequestHandler, directory=output_file.parent)
     http_server = HTTPServer(("localhost", 0), http_handler)
 
@@ -170,7 +170,7 @@ def open_visualizer(output_file: Path, vis_requests: int) -> None:
 
     # Chrome makes 2 requests: 1 OPTIONS request to check for CORS headers and 1 GET request to get the data
     # Some users reported their browser only makes 1 request, which is covered by the --vis-requests option
-    for _ in range(vis_requests):
+    for _ in range(no_requests):
         http_server.handle_request()
 
 def format_path(path: Path) -> str:
