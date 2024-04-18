@@ -239,7 +239,7 @@ def run_backtest(
     )
 
     sorted_timestamps = sorted(data.prices.keys())
-    timestamps_iterator = sorted_timestamps if disable_progress_bar else tqdm(sorted_timestamps)
+    timestamps_iterator = sorted_timestamps if disable_progress_bar else tqdm(sorted_timestamps, ascii=True)
 
     for timestamp in timestamps_iterator:
         state.timestamp = timestamp
