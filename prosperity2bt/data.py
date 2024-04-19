@@ -12,6 +12,8 @@ LIMITS = {
     "STRAWBERRIES": 350,
     "ROSES": 60,
     "GIFT_BASKET": 60,
+    "COCONUT": 300,
+    "COCONUT_COUPON": 600,
 }
 
 @dataclass
