@@ -92,13 +92,16 @@ def print_day_summary(result: BacktestResult) -> None:
     print(*reversed(product_lines), sep="\n")
     print(f"Total profit: {total_profit:,.0f}\n")
 
-def merge_results(a: BacktestResult, b: BacktestResult, merge_profit_loss: bool) -> BacktestResult:
+def merge_results(a: BacktestResult, b: BacktestResult, merge_profit_loss: bool, merge_timestamps: bool) -> BacktestResult:
     sandbox_logs = a.sandbox_logs[:]
     activity_logs = a.activity_logs[:]
     trades = a.trades[:]
 
-    a_last_timestamp = a.activity_logs[-1].timestamp
-    timestamp_offset = a_last_timestamp + 100
+    if merge_timestamps:
+        a_last_timestamp = a.activity_logs[-1].timestamp
+        timestamp_offset = a_last_timestamp + 100
+    else:
+        timestamp_offset = 0
 
     sandbox_logs.extend([row.with_offset(timestamp_offset) for row in b.sandbox_logs])
     trades.extend([row.with_offset(timestamp_offset) for row in b.trades])
@@ -193,6 +196,7 @@ def main() -> None:
     parser.add_argument("--no-out", action="store_true", help="skip saving the output log to a file")
     parser.add_argument("--no-progress", action="store_true", help="don't show progress bars")
     parser.add_argument("--vis-requests", type=int, default=2, help="number of requests the visualizer is expected to make to the backtester's HTTP server when using --vis")
+    parser.add_argument("--original-timestamps", action="store_true", help="preserve original timestamps in output log rather than making them increase across days")
     parser.add_argument("-v", "--version", action="version", version=f"%(prog)s {metadata.version(__package__)}")
 
     args = parser.parse_args()
@@ -230,7 +234,7 @@ def main() -> None:
 
         results.append(result)
 
-    merged_results = reduce(lambda a, b: merge_results(a, b, args.merge_pnl), results)
+    merged_results = reduce(lambda a, b: merge_results(a, b, args.merge_pnl, not args.original_timestamps), results)
 
     if len(days) > 1:
         print_overall_summary(results)
