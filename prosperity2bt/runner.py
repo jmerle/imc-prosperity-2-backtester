@@ -1,3 +1,4 @@
+import os
 from contextlib import closing, redirect_stdout
 from io import StringIO
 from IPython.utils.io import Tee
@@ -223,6 +224,9 @@ def run_backtest(
     progress_id: int,
 ) -> BacktestResult:
     data = read_day_data(file_reader, round_num, day_num)
+
+    os.environ["PROSPERITY2BT_ROUND"] = str(round_num)
+    os.environ["PROSPERITY2BT_DAY"] = str(day_num)
 
     trader_data = ""
     state = TradingState(
