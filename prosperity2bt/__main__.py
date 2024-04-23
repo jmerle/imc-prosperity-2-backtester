@@ -256,8 +256,7 @@ def main() -> None:
     days = parse_days(file_reader, args.days)
     output_file = parse_out(args.out, args.no_out)
 
-    progress_manager = Manager()
-    progress_queue = progress_manager.Queue()
+    progress_queue = Manager().Queue()
 
     with ProcessPoolExecutor(args.max_workers) as executor:
         show_progress_bars = not args.no_progress and not args.print and executor._max_workers > 1
