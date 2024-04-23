@@ -226,6 +226,7 @@ def main() -> None:
     parser.add_argument("--vis-requests", type=int, default=2, help="number of requests the visualizer is expected to make to the backtester's HTTP server when using --vis")
     parser.add_argument("--original-timestamps", action="store_true", help="preserve original timestamps in output log rather than making them increase across days")
     parser.add_argument("--max-workers", type=int, default=None, help="maximum number of worker processes to use")
+    parser.add_argument("--no-names", action="store_true", help="don't use de-anonymized trades data, even if it exists")
     parser.add_argument("-v", "--version", action="version", version=f"%(prog)s {metadata.version(__package__)}")
 
     args = parser.parse_args()
@@ -275,6 +276,7 @@ def main() -> None:
                 day_num,
                 args.print,
                 args.no_trades_matching,
+                args.no_names,
                 progress_queue,
                 i,
             )

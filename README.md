@@ -65,6 +65,22 @@ Orders placed by `Trader.run` at a given timestamp are matched against the order
 
 Limits are enforced before orders are matched to order depths. If for a product your position would exceed the limit, assuming all your orders would get filled, all your orders for that product get canceled.
 
+## Data Files
+
+Data for the following round is included:
+- Round 0: prices and anonymized trades data on AMETHYSTS and STARFRUIT that was used during tutorial submission runs.
+- Round 1: prices, anonymized trades, and de-anonymized trades data on AMETHYSTS and STARFRUIT.
+- Round 3: prices, anonymized trades, and de-anonymized trades data on CHOCOLATE, STRAWBERRIES, ROSES, and GIFT_BASKET.
+- Round 4: prices, anonymized trades, and de-anonymized trades data on COCONUT and COCONUT_COUPON.
+- Round 6: prices data that was used during submission runs. Round 6 day X represents the submission data of round X, where X = 0 means the tutorial round.
+- Round 7: prices data that was used during end-of-round runs. Round 7 day Y represents the end-of-round data of round Y.
+
+Round 2 (ORCHIDS and conversion observations) is not supported. By default de-anonymized trades data is used if it is available, except when the `--no-names` flag is used.
+
+## Environment Variables
+
+During backtests two environment variables are set for the trader to know the round and day it's being backtested on. The environment variable named `PROSPERITY2BT_ROUND` contains the round number and `PROSPERITY2BT_DAY` contains the day number. Note that these environment variables do not exist in the official submission environment, so make sure the code you submit doesn't require them to be defined.
+
 ## Development
 
 If you want to make changes to the backtester, clone (or fork and clone) this repository and run `pip install -e .` in the project's root. This installs the project in editable mode, so any changes you make are automatically taken into account the next time you run `prosperity2bt`.

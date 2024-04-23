@@ -220,10 +220,11 @@ def run_backtest(
     day_num: int,
     print_output: bool,
     disable_trades_matching: bool,
+    no_names: bool,
     progress_queue: Queue,
     progress_id: int,
 ) -> BacktestResult:
-    data = read_day_data(file_reader, round_num, day_num)
+    data = read_day_data(file_reader, round_num, day_num, no_names)
 
     os.environ["PROSPERITY2BT_ROUND"] = str(round_num)
     os.environ["PROSPERITY2BT_DAY"] = str(day_num)

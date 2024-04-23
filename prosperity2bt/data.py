@@ -80,7 +80,7 @@ def has_day_data(file_reader: FileReader, round_num: int, day_num: int) -> bool:
     with file_reader.file([f"round{round_num}", f"prices_round_{round_num}_day_{day_num}.csv"]) as file:
         return file is not None
 
-def read_day_data(file_reader: FileReader, round_num: int, day_num: int) -> Optional[BacktestData]:
+def read_day_data(file_reader: FileReader, round_num: int, day_num: int, no_names: bool) -> Optional[BacktestData]:
     prices = []
     with file_reader.file([f"round{round_num}", f"prices_round_{round_num}_day_{day_num}.csv"]) as file:
         if file is None:
@@ -102,7 +102,9 @@ def read_day_data(file_reader: FileReader, round_num: int, day_num: int) -> Opti
             ))
 
     trades = []
-    for suffix in ["wn", "nn"]:
+    trades_suffixes = ["nn"] if no_names else ["wn", "nn"]
+
+    for suffix in trades_suffixes:
         with file_reader.file([f"round{round_num}", f"trades_round_{round_num}_day_{day_num}_{suffix}.csv"]) as file:
             if file is None:
                 continue
