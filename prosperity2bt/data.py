@@ -50,12 +50,17 @@ class BacktestData:
     products: list[Symbol]
     profit_loss: dict[Symbol, int]
 
+# We need to be able to pickle BacktestData for the multiprocessing module
+# defaultdict(<lambda>) does not support this because lambdas cannot be pickled
+def create_defaultdict_of_lists() -> dict:
+    return defaultdict(list)
+
 def create_backtest_data(round_num: int, day_num: int, prices: list[PriceRow], trades: list[Trade]) -> BacktestData:
     prices_by_timestamp: dict[int, dict[Symbol, PriceRow]] = defaultdict(dict)
     for row in prices:
         prices_by_timestamp[row.timestamp][row.product] = row
 
-    trades_by_timestamp: dict[int, dict[Symbol, list[Trade]]] = defaultdict(lambda: defaultdict(list))
+    trades_by_timestamp: dict[int, dict[Symbol, list[Trade]]] = defaultdict(create_defaultdict_of_lists)
     for trade in trades:
         trades_by_timestamp[trade.timestamp][trade.symbol].append(trade)
 
@@ -70,6 +75,10 @@ def create_backtest_data(round_num: int, day_num: int, prices: list[PriceRow], t
         products=products,
         profit_loss=profit_loss,
     )
+
+def has_day_data(file_reader: FileReader, round_num: int, day_num: int) -> bool:
+    with file_reader.file([f"round{round_num}", f"prices_round_{round_num}_day_{day_num}.csv"]) as file:
+        return file is not None
 
 def read_day_data(file_reader: FileReader, round_num: int, day_num: int) -> Optional[BacktestData]:
     prices = []

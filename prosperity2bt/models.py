@@ -1,4 +1,4 @@
-import json
+import orjson
 from dataclasses import dataclass
 from prosperity2bt.datamodel import Trade
 from typing import Any
@@ -17,11 +17,11 @@ class SandboxLogRow:
         )
 
     def __str__(self) -> str:
-        return json.dumps({
+        return orjson.dumps({
             "sandboxLog": self.sandbox_log,
             "lambdaLog": self.lambda_log,
             "timestamp": self.timestamp,
-        }, indent=2)
+        }, option=orjson.OPT_APPEND_NEWLINE | orjson.OPT_INDENT_2).decode("utf-8")
 
 @dataclass
 class ActivityLogRow:

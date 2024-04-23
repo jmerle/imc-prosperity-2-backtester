@@ -2,15 +2,18 @@ import sys
 import webbrowser
 from argparse import ArgumentParser
 from collections import defaultdict
+from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime
 from functools import partial, reduce
 from http.server import HTTPServer, SimpleHTTPRequestHandler
-from importlib import import_module, metadata, reload
+from importlib import import_module, metadata
+from multiprocessing import Manager, Queue
 from pathlib import Path
-from prosperity2bt.data import BacktestData, read_day_data
-from prosperity2bt.file_reader import FileSystemReader, PackageResourcesReader
+from prosperity2bt.data import has_day_data
+from prosperity2bt.file_reader import FileReader, FileSystemReader, PackageResourcesReader
 from prosperity2bt.models import BacktestResult
 from prosperity2bt.runner import run_backtest
+from tqdm import tqdm
 from typing import Any, Optional
 
 def parse_algorithm(algorithm: str) -> Any:
@@ -21,35 +24,31 @@ def parse_algorithm(algorithm: str) -> Any:
     sys.path.append(str(algorithm_path.parent))
     return import_module(algorithm_path.stem)
 
-def parse_days(days: list[str], data_root: Optional[str]) -> list[BacktestData]:
+def parse_data(data_root: Optional[str]) -> FileReader:
     if data_root is not None:
-        file_reader = FileSystemReader(Path(data_root).expanduser().resolve())
+        return FileSystemReader(Path(data_root).expanduser().resolve())
     else:
-        file_reader = PackageResourcesReader()
+        return PackageResourcesReader()
 
+def parse_days(file_reader: FileReader, days: list[str]) -> list[tuple[int, int]]:
     parsed_days = []
-
-    if data_root is not None:
-        data_root = Path(data_root).expanduser().resolve()
 
     for arg in days:
         if "-" in arg:
             round_num, day_num = map(int, arg.split("-", 1))
 
-            day_data = read_day_data(file_reader, round_num, day_num)
-            if day_data is None:
+            if not has_day_data(file_reader, round_num, day_num):
                 print(f"Warning: no data found for round {round_num} day {day_num}")
                 continue
 
-            parsed_days.append(day_data)
+            parsed_days.append((round_num, day_num))
         else:
             round_num = int(arg)
 
             parsed_days_in_round = []
             for day_num in range(-5, 6):
-                day_data = read_day_data(file_reader, round_num, day_num)
-                if day_data is not None:
-                    parsed_days_in_round.append(day_data)
+                if has_day_data(file_reader, round_num, day_num):
+                    parsed_days_in_round.append((round_num, day_num))
 
             if len(parsed_days_in_round) == 0:
                 print(f"Warning: no data found for round {round_num}")
@@ -73,6 +72,33 @@ def parse_out(out: Optional[str], no_out: bool) -> Optional[Path]:
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     return Path.cwd() / "backtests" / f"{timestamp}.log"
 
+def update_progress_bars(days: list[tuple[int, int]], queue: Queue) -> None:
+    bars = [tqdm(
+        desc=f"Round {round_num} day {day_num}",
+        position=i,
+        ascii=True,
+    ) for i, (round_num, day_num) in enumerate(days)]
+
+    completed = 0
+
+    while completed < len(days):
+        bar_id, operation, amount = queue.get()
+        bar = bars[bar_id]
+
+        if operation == "total":
+            bar.total = amount
+        elif operation == "advance":
+            bar.n = amount
+            bar.refresh()
+
+            if bar.n == bar.total:
+                completed += 1
+
+    for bar in bars:
+        bar.close()
+
+    print()
+
 def print_day_summary(result: BacktestResult) -> None:
     last_timestamp = result.activity_logs[-1].timestamp
 
@@ -89,8 +115,9 @@ def print_day_summary(result: BacktestResult) -> None:
         product_lines.append(f"{product}: {profit:,.0f}")
         total_profit += profit
 
+    print(f"Round {result.round_num} day {result.day_num}:")
     print(*reversed(product_lines), sep="\n")
-    print(f"Total profit: {total_profit:,.0f}\n")
+    print(f"Total profit: {total_profit:,.0f}")
 
 def merge_results(a: BacktestResult, b: BacktestResult, merge_profit_loss: bool, merge_timestamps: bool) -> BacktestResult:
     sandbox_logs = a.sandbox_logs[:]
@@ -127,9 +154,10 @@ def write_output(output_file: Path, merged_results: BacktestResult) -> None:
     output_file.parent.mkdir(parents=True, exist_ok=True)
     with output_file.open("w+", encoding="utf-8") as file:
         file.write("Sandbox logs:\n")
-        file.write("\n".join(map(str, merged_results.sandbox_logs)))
+        for row in merged_results.sandbox_logs:
+            file.write(str(row))
 
-        file.write("\n\n\n\nActivities log:\n")
+        file.write("\n\n\nActivities log:\n")
         file.write("day;timestamp;product;bid_price_1;bid_volume_1;bid_price_2;bid_volume_2;bid_price_3;bid_volume_3;ask_price_1;ask_volume_1;ask_price_2;ask_volume_2;ask_price_3;ask_volume_3;mid_price;profit_and_loss\n")
         file.write("\n".join(map(str, merged_results.activity_logs)))
 
@@ -197,6 +225,7 @@ def main() -> None:
     parser.add_argument("--no-progress", action="store_true", help="don't show progress bars")
     parser.add_argument("--vis-requests", type=int, default=2, help="number of requests the visualizer is expected to make to the backtester's HTTP server when using --vis")
     parser.add_argument("--original-timestamps", action="store_true", help="preserve original timestamps in output log rather than making them increase across days")
+    parser.add_argument("--max-workers", type=int, default=None, help="maximum number of worker processes to use")
     parser.add_argument("-v", "--version", action="version", version=f"%(prog)s {metadata.version(__package__)}")
 
     args = parser.parse_args()
@@ -209,6 +238,10 @@ def main() -> None:
         print("Error: --out and --no-out are mutually exclusive")
         sys.exit(1)
 
+    if args.max_workers is not None and args.max_workers < 1:
+        print("Error: --max-workers must be greater than 0")
+        sys.exit(1)
+
     try:
         trader_module = parse_algorithm(args.algorithm)
     except ModuleNotFoundError as e:
@@ -219,27 +252,55 @@ def main() -> None:
         print(f"{args.algorithm} does not expose a Trader class")
         sys.exit(1)
 
-    days = parse_days(args.days, args.data)
+    file_reader = parse_data(args.data)
+    days = parse_days(file_reader, args.days)
     output_file = parse_out(args.out, args.no_out)
 
-    results = []
-    for day in days:
-        print(f"Backtesting {args.algorithm} on round {day.round_num} day {day.day_num}")
+    progress_manager = Manager()
+    progress_queue = progress_manager.Queue()
 
-        reload(trader_module)
-        trader = trader_module.Trader()
+    with ProcessPoolExecutor(args.max_workers) as executor:
+        show_progress_bars = not args.no_progress and not args.print and executor._max_workers > 1
+        show_live_results = args.print or executor._max_workers == 1
 
-        result = run_backtest(trader, day, args.print, args.no_trades_matching, args.no_progress)
-        print_day_summary(result)
+        if show_progress_bars:
+            executor.submit(update_progress_bars, days, progress_queue)
 
-        results.append(result)
+        futures = []
+        for i, (round_num, day_num) in enumerate(days):
+            future = executor.submit(
+                run_backtest,
+                trader_module.Trader(),
+                file_reader,
+                round_num,
+                day_num,
+                args.print,
+                args.no_trades_matching,
+                progress_queue,
+                i,
+            )
 
-    merged_results = reduce(lambda a, b: merge_results(a, b, args.merge_pnl, not args.original_timestamps), results)
+            if show_live_results:
+                result = future.result()
+                print_day_summary(result)
+                if len(days) > 1:
+                    print()
+
+            futures.append(future)
+
+        results = [future.result() for future in futures]
+
+    if not show_live_results:
+        for result in results:
+            print_day_summary(result)
+            if len(days) > 1:
+                print()
 
     if len(days) > 1:
         print_overall_summary(results)
 
     if output_file is not None:
+        merged_results = reduce(lambda a, b: merge_results(a, b, args.merge_pnl, not args.original_timestamps), results)
         write_output(output_file, merged_results)
         print(f"\nSuccessfully saved backtest results to {format_path(output_file)}")
 
