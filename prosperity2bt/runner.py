@@ -2,7 +2,7 @@ import os
 from contextlib import closing, redirect_stdout
 from io import StringIO
 from IPython.utils.io import Tee
-from multiprocessing import Queue
+from multiprocess import Queue
 from prosperity2bt.data import BacktestData, LIMITS, read_day_data
 from prosperity2bt.datamodel import Observation, Order, OrderDepth, Symbol, Trade, TradingState
 from prosperity2bt.file_reader import FileReader

@@ -18,7 +18,7 @@ classifiers = [
     "Programming Language :: Python :: 3",
 ]
 requires-python = ">= 3.9"
-dependencies = ["ipython", "jsonpickle", "orjson", "tqdm"]
+dependencies = ["ipython", "jsonpickle", "multiprocess", "orjson", "tqdm"]
 
 [project.scripts]
 prosperity2bt = "prosperity2bt.__main__:main"

@@ -7,7 +7,7 @@ from datetime import datetime
 from functools import partial, reduce
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from importlib import import_module, metadata
-from multiprocessing import Manager, Queue
+from multiprocess import Manager, Queue
 from pathlib import Path
 from prosperity2bt.data import has_day_data
 from prosperity2bt.file_reader import FileReader, FileSystemReader, PackageResourcesReader
