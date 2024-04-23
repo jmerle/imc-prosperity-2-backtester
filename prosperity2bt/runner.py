@@ -2,11 +2,11 @@ import os
 from contextlib import closing, redirect_stdout
 from io import StringIO
 from IPython.utils.io import Tee
-from multiprocessing import Queue
 from prosperity2bt.data import BacktestData, LIMITS, read_day_data
 from prosperity2bt.datamodel import Observation, Order, OrderDepth, Symbol, Trade, TradingState
 from prosperity2bt.file_reader import FileReader
 from prosperity2bt.models import ActivityLogRow, BacktestResult, MarketTrade, SandboxLogRow, TradeRow
+from tqdm import tqdm
 from typing import Any
 
 def prepare_state(state: TradingState, data: BacktestData) -> None:
@@ -221,8 +221,7 @@ def run_backtest(
     print_output: bool,
     disable_trades_matching: bool,
     no_names: bool,
-    progress_queue: Queue,
-    progress_id: int,
+    show_progress_bar: bool,
 ) -> BacktestResult:
     data = read_day_data(file_reader, round_num, day_num, no_names)
 
@@ -250,9 +249,9 @@ def run_backtest(
     )
 
     timestamps = sorted(data.prices.keys())
-    progress_queue.put_nowait([progress_id, "total", len(timestamps)])
+    timestamps_iterator = tqdm(timestamps, ascii=True) if show_progress_bar else timestamps
 
-    for i, timestamp in enumerate(timestamps):
+    for timestamp in timestamps_iterator:
         state.timestamp = timestamp
         state.traderData = trader_data
 
@@ -282,8 +281,5 @@ def run_backtest(
         create_activity_logs(state, data, result)
         enforce_limits(state, data, orders, sandbox_row)
         match_orders(state, data, orders, result, disable_trades_matching)
-
-        if i % 100 == 0 or i == len(timestamps) - 1:
-            progress_queue.put_nowait([progress_id, "update", i + 1])
 
     return result

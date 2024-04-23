@@ -2,18 +2,15 @@ import sys
 import webbrowser
 from argparse import ArgumentParser
 from collections import defaultdict
-from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime
 from functools import partial, reduce
 from http.server import HTTPServer, SimpleHTTPRequestHandler
-from importlib import import_module, metadata
-from multiprocessing import Manager, Queue
+from importlib import import_module, metadata, reload
 from pathlib import Path
 from prosperity2bt.data import has_day_data
 from prosperity2bt.file_reader import FileReader, FileSystemReader, PackageResourcesReader
 from prosperity2bt.models import BacktestResult
 from prosperity2bt.runner import run_backtest
-from tqdm import tqdm
 from typing import Any, Optional
 
 def parse_algorithm(algorithm: str) -> Any:
@@ -72,33 +69,6 @@ def parse_out(out: Optional[str], no_out: bool) -> Optional[Path]:
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     return Path.cwd() / "backtests" / f"{timestamp}.log"
 
-def update_progress_bars(days: list[tuple[int, int]], queue: Queue) -> None:
-    bars = [tqdm(
-        desc=f"Round {round_num} day {day_num}",
-        position=i,
-        ascii=True,
-    ) for i, (round_num, day_num) in enumerate(days)]
-
-    completed = 0
-
-    while completed < len(days):
-        bar_id, operation, amount = queue.get()
-        bar = bars[bar_id]
-
-        if operation == "total":
-            bar.total = amount
-        elif operation == "update":
-            bar.n = amount
-            bar.refresh()
-
-            if bar.n == bar.total:
-                completed += 1
-
-    for bar in bars:
-        bar.close()
-
-    print()
-
 def print_day_summary(result: BacktestResult) -> None:
     last_timestamp = result.activity_logs[-1].timestamp
 
@@ -115,7 +85,6 @@ def print_day_summary(result: BacktestResult) -> None:
         product_lines.append(f"{product}: {profit:,.0f}")
         total_profit += profit
 
-    print(f"Round {result.round_num} day {result.day_num}:")
     print(*reversed(product_lines), sep="\n")
     print(f"Total profit: {total_profit:,.0f}")
 
@@ -225,7 +194,6 @@ def main() -> None:
     parser.add_argument("--no-progress", action="store_true", help="don't show progress bars")
     parser.add_argument("--vis-requests", type=int, default=2, help="number of requests the visualizer is expected to make to the backtester's HTTP server when using --vis")
     parser.add_argument("--original-timestamps", action="store_true", help="preserve original timestamps in output log rather than making them increase across days")
-    parser.add_argument("--max-workers", type=int, default=None, help="maximum number of worker processes to use")
     parser.add_argument("--no-names", action="store_true", help="don't use de-anonymized trades data, even if it exists")
     parser.add_argument("-v", "--version", action="version", version=f"%(prog)s {metadata.version(__package__)}")
 
@@ -237,10 +205,6 @@ def main() -> None:
 
     if args.out is not None and args.no_out:
         print("Error: --out and --no-out are mutually exclusive")
-        sys.exit(1)
-
-    if args.max_workers is not None and args.max_workers < 1:
-        print("Error: --max-workers must be greater than 0")
         sys.exit(1)
 
     try:
@@ -257,45 +221,30 @@ def main() -> None:
     days = parse_days(file_reader, args.days)
     output_file = parse_out(args.out, args.no_out)
 
-    progress_queue = Manager().Queue()
+    show_progress_bars = not args.no_progress and not args.print
 
-    with ProcessPoolExecutor(args.max_workers) as executor:
-        show_progress_bars = not args.no_progress and not args.print and executor._max_workers > 1
-        show_live_results = args.print or executor._max_workers == 1
+    results = []
+    for round_num, day_num in days:
+        print(f"Backtesting {args.algorithm} on round {round_num} day {day_num}")
 
-        if show_progress_bars:
-            executor.submit(update_progress_bars, days, progress_queue)
+        reload(trader_module)
 
-        futures = []
-        for i, (round_num, day_num) in enumerate(days):
-            future = executor.submit(
-                run_backtest,
-                trader_module.Trader(),
-                file_reader,
-                round_num,
-                day_num,
-                args.print,
-                args.no_trades_matching,
-                args.no_names,
-                progress_queue,
-                i,
-            )
+        result = run_backtest(
+            trader_module.Trader(),
+            file_reader,
+            round_num,
+            day_num,
+            args.print,
+            args.no_trades_matching,
+            args.no_names,
+            show_progress_bars,
+        )
 
-            if show_live_results:
-                result = future.result()
-                print_day_summary(result)
-                if len(days) > 1:
-                    print()
+        print_day_summary(result)
+        if len(days) > 1:
+            print()
 
-            futures.append(future)
-
-        results = [future.result() for future in futures]
-
-    if not show_live_results:
-        for result in results:
-            print_day_summary(result)
-            if len(days) > 1:
-                print()
+        results.append(result)
 
     if len(days) > 1:
         print_overall_summary(results)
