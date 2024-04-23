@@ -249,7 +249,7 @@ def run_backtest(
     )
 
     timestamps = sorted(data.prices.keys())
-    progress_queue.put([progress_id, "total", len(timestamps)])
+    progress_queue.put_nowait([progress_id, "total", len(timestamps)])
 
     for i, timestamp in enumerate(timestamps):
         state.timestamp = timestamp
@@ -283,6 +283,6 @@ def run_backtest(
         match_orders(state, data, orders, result, disable_trades_matching)
 
         if i % 100 == 0 or i == len(timestamps) - 1:
-            progress_queue.put_nowait([progress_id, "advance", i + 1])
+            progress_queue.put_nowait([progress_id, "update", i + 1])
 
     return result

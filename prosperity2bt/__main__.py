@@ -87,7 +87,7 @@ def update_progress_bars(days: list[tuple[int, int]], queue: Queue) -> None:
 
         if operation == "total":
             bar.total = amount
-        elif operation == "advance":
+        elif operation == "update":
             bar.n = amount
             bar.refresh()
 
